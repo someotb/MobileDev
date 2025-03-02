@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.calculjc"
+    namespace = "com.example.absolutecinema"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.calculjc"
+        applicationId = "com.example.absolutecinema"
         minSdk = 29
         targetSdk = 35
         versionCode = 1

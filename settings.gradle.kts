@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Calcul JC"
+rootProject.name = "AbsoluteCinema"
 include(":app")
  

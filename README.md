@@ -1,2 +1,0 @@
-# MobileDev
-My mobile projects
