@@ -1,2 +1,2 @@
-Project Name: Calculator Absolute Cinema
+Project Name: MyCal
 Aims: Create and Design mobile calculator app

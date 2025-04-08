@@ -1,7 +1,7 @@
 package com.example.mycal
 
+import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -29,12 +29,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mycal.ui.theme.MycalTheme
 import com.example.mycal.ui.theme.Rose
 import com.example.mycal.ui.theme.Russian_Violete
-
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MycalTheme {
+                val context = LocalContext.current
 
                 fun simpleCalculate(expr: String): Double {
                     val expression = expr.replace(" ", "")
@@ -68,9 +69,7 @@ class MainActivity : ComponentActivity() {
                     var result = numbers[0]
                     for (i in operators.indices) {
                         val op = operators[i]
-                        Log.d("My Log 1st number",result.toString())
                         val nextNumber = numbers[i + 1]
-                        Log.d("My Log 2nd number",nextNumber.toString())
                         result = when (op) {
                             '+' -> result + nextNumber
                             '-' -> result - nextNumber
@@ -78,7 +77,6 @@ class MainActivity : ComponentActivity() {
                             '/' -> result / nextNumber
                             else -> result
                         }
-                        Log.d("My Log result in function",result.toString())
                     }
                     return result
                 }
@@ -97,16 +95,9 @@ class MainActivity : ComponentActivity() {
                             .fillMaxSize()
                             .padding(35.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
+                        Row(modifier = Modifier.fillMaxWidth()) {
                             OutlinedTextField(
-                                label = { Text(
-                                    "Enter Expression",
-                                    color = Rose,
-                                    ) },
-
+                                label = { Text("Enter Expression", color = Rose) },
                                 colors = TextFieldDefaults.outlinedTextFieldColors(
                                     containerColor = Russian_Violete,
                                     focusedBorderColor = Rose,
@@ -117,20 +108,15 @@ class MainActivity : ComponentActivity() {
                                     val allowedChars = "0123456789+-*/."
                                     expression = input.filter { it in allowedChars }
                                 },
-                                modifier = Modifier
-                                    .weight(1f)
+                                modifier = Modifier.weight(1f)
                             )
                         }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ){
+                        Row(modifier = Modifier.fillMaxWidth()) {
                             Button(
                                 onClick = {
                                     if (expression.isNotBlank()) {
                                         try {
                                             val result = simpleCalculate(expression)
-                                            Log.d("My Log result on Button", result.toString())
                                             expressionS = expressionS + "$expression = $result"
                                             expression = ""
                                         } catch (e: Exception) {
@@ -144,17 +130,25 @@ class MainActivity : ComponentActivity() {
                                     .padding(top = 8.dp)
                                     .height(56.dp)
                             ) {
-                                Text(
-                                    "Calculate Expression",
-                                    color = Color.White,
-                                    fontSize = 15.sp
-                                )
+                                Text("Calculate Expression", color = Color.White, fontSize = 15.sp)
                             }
-
                         }
-
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = {
+                                    context.startActivity(Intent(context, MusicPlayer::class.java))
+                                },
+                                colors = ButtonDefaults.buttonColors(Rose),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                                    .height(56.dp)
+                            ) {
+                                Text("Go to Music Player", color = Color.White, fontSize = 15.sp)
+                            }
+                        }
                         LazyColumn {
-                            items(expressionS.reversed()) {currentExp ->
+                            items(expressionS.reversed()) { currentExp ->
                                 Text(
                                     text = currentExp,
                                     color = Color.White,
@@ -164,7 +158,6 @@ class MainActivity : ComponentActivity() {
                                 )
                                 Divider(color = Rose)
                             }
-
                         }
                     }
                 }
