@@ -9,7 +9,6 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,20 +33,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.mycal.ui.theme.Rose
 
-data class AudioFile(val id: Long, val name: String, val data: String)
+class AudioFile(val id: Long, val name: String, val data: String)
 
 fun fetchAudioFiles(context: Context): List<AudioFile> {
     val audioList = mutableListOf<AudioFile>()
@@ -60,62 +57,52 @@ fun fetchAudioFiles(context: Context): List<AudioFile> {
     val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
     val cursor = context.contentResolver.query(uri, projection, selection, null, null)
     cursor?.use {
-        val idColumn = it.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-        val nameColumn = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-        val dataColumn = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-
+        val idCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+        val nameCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+        val dataCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
         while (it.moveToNext()) {
-            val id = it.getLong(idColumn)
-            val name = it.getString(nameColumn)
-            val data = it.getString(dataColumn)
-            audioList.add(AudioFile(id, name, data))
+            audioList += AudioFile(
+                it.getLong(idCol),
+                it.getString(nameCol),
+                it.getString(dataCol)
+            )
         }
     }
     return audioList
 }
 
-@Composable
-fun RequestAudioPermission(onPermissionResult: (Boolean) -> Unit) {
-    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-        Manifest.permission.READ_MEDIA_AUDIO
-    else
-        Manifest.permission.READ_EXTERNAL_STORAGE
+class MusicPlayer : ComponentActivity() {
+    private var hasPermission by mutableStateOf(false)
 
-    val launcher = rememberLauncherForActivityResult(
+    private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        onPermissionResult(granted)
+        hasPermission = granted
     }
 
-    LaunchedEffect(Unit) {
-        launcher.launch(permission)
-    }
-}
-
-class MusicPlayer : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            Manifest.permission.READ_MEDIA_AUDIO
+        else
+            Manifest.permission.READ_EXTERNAL_STORAGE
+
+        permissionLauncher.launch(permission)
+
         setContent {
-            MusicPlayerScreen()
+            MusicPlayerScreen(hasPermission)
         }
     }
 }
 
 @Composable
-fun MusicPlayerScreen() {
+fun MusicPlayerScreen(hasPermission: Boolean) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val scope = rememberCoroutineScope()
-
-    var hasPermission by remember { mutableStateOf(false) }
-    var audioList by remember { mutableStateOf<List<AudioFile>>(emptyList()) }
+    var audioList by remember { mutableStateOf(emptyList<AudioFile>()) }
     var currentIndex by remember { mutableStateOf(-1) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
-
-    RequestAudioPermission { granted ->
-        hasPermission = granted
-    }
 
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
@@ -134,99 +121,90 @@ fun MusicPlayerScreen() {
             }
         }
     }
-
     fun playNext() {
         if (audioList.isNotEmpty()) {
-            currentIndex = if (currentIndex < audioList.size - 1) currentIndex + 1 else 0
+            currentIndex = (currentIndex + 1).coerceAtMost(audioList.lastIndex).let {
+                if (it > audioList.lastIndex) 0 else it
+            }
             playSong(audioList[currentIndex])
         }
     }
-
     fun playPrevious() {
         if (audioList.isNotEmpty()) {
-            currentIndex = if (currentIndex > 0) currentIndex - 1 else audioList.size - 1
+            currentIndex = (currentIndex - 1).coerceAtLeast(0).let {
+                if (it < 0) audioList.lastIndex else it
+            }
             playSong(audioList[currentIndex])
         }
     }
 
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
+        val obs = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 mediaPlayer?.release()
                 mediaPlayer = null
             }
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = Color.Black
-    ) {
+    Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
         if (!hasPermission) {
             Column(
-                modifier = Modifier.fillMaxSize(),
+                Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Нет разрешения на доступ к аудиофайлам", color = Color.White, fontSize = 20.sp)
+                Text(
+                    "Нет разрешения на доступ к аудиофайлам",
+                    color = Color.White, fontSize = 20.sp
+                )
             }
         } else {
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Top,
-                modifier = Modifier
+                Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("Music Player", color = Color.White, fontSize = 24.sp)
-
                 Row(
+                    Modifier.padding(top = 16.dp),
                     horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 16.dp)
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
                         onClick = { playPrevious() },
                         colors = ButtonDefaults.buttonColors(Rose),
                         modifier = Modifier
-                            .padding(6.dp)
-                            .height(56.dp)
                             .weight(1f)
-                    ) {
-                        Text("Prev", color = Color.White, fontSize = 12.sp)
-                    }
+                            .height(56.dp)
+                            .padding(6.dp)
+                    ) { Text("Prev", color = Color.White, fontSize = 12.sp) }
+
                     Button(
                         onClick = {
-                            mediaPlayer?.let { player ->
-                                if (player.isPlaying) {
-                                    player.pause()
-                                } else {
-                                    player.start()
-                                }
+                            mediaPlayer?.let {
+                                if (it.isPlaying) it.pause() else it.start()
                             }
                         },
                         colors = ButtonDefaults.buttonColors(Rose),
                         modifier = Modifier
-                            .padding(6.dp)
-                            .height(56.dp)
                             .weight(1f)
-                    ) {
-                        Text("Play/Pause", color = Color.White, fontSize = 9.sp)
-                    }
+                            .height(56.dp)
+                            .padding(6.dp)
+                    ) { Text("Play/Pause", color = Color.White, fontSize = 9.sp) }
+
                     Button(
                         onClick = { playNext() },
                         colors = ButtonDefaults.buttonColors(Rose),
                         modifier = Modifier
-                            .padding(6.dp)
-                            .height(56.dp)
                             .weight(1f)
-                    ) {
-                        Text("Next", color = Color.White, fontSize = 12.sp)
-                    }
+                            .height(56.dp)
+                            .padding(6.dp)
+                    ) { Text("Next", color = Color.White, fontSize = 12.sp) }
                 }
 
                 Button(
@@ -235,20 +213,20 @@ fun MusicPlayerScreen() {
                     },
                     colors = ButtonDefaults.buttonColors(Rose),
                     modifier = Modifier
-                        .padding(8.dp)
                         .height(56.dp)
+                        .padding(8.dp)
                 ) {
                     Text("Go to calculator", color = Color.White, fontSize = 15.sp)
                 }
 
                 LazyColumn(
-                    modifier = Modifier
+                    Modifier
                         .fillMaxWidth()
                         .padding(top = 16.dp)
                 ) {
                     items(audioList) { audioFile ->
                         Row(
-                            modifier = Modifier
+                            Modifier
                                 .fillMaxWidth()
                                 .clickable {
                                     currentIndex = audioList.indexOf(audioFile)
@@ -258,7 +236,7 @@ fun MusicPlayerScreen() {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = audioFile.name,
+                                audioFile.name,
                                 color = if (audioList.indexOf(audioFile) == currentIndex) Rose else Color.White,
                                 fontSize = 16.sp
                             )
