@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -66,15 +67,15 @@ class MainActivity : ComponentActivity() {
                         numbers.add(currentNumber.toDouble())
                     }
 
-                    var result = numbers[0]
+                    var result = numbers.firstOrNull() ?: 0.0
                     for (i in operators.indices) {
                         val op = operators[i]
-                        val nextNumber = numbers[i + 1]
+                        val next = numbers[i + 1]
                         result = when (op) {
-                            '+' -> result + nextNumber
-                            '-' -> result - nextNumber
-                            '*' -> result * nextNumber
-                            '/' -> result / nextNumber
+                            '+' -> result + next
+                            '-' -> result - next
+                            '*' -> result * next
+                            '/' -> result / next
                             else -> result
                         }
                     }
@@ -82,82 +83,88 @@ class MainActivity : ComponentActivity() {
                 }
 
                 var expression by remember { mutableStateOf("") }
-                var expressionS by remember { mutableStateOf(listOf<String>()) }
+                var history by remember { mutableStateOf(listOf<String>()) }
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = Russian_Violete
                 ) {
                     Column(
-                        verticalArrangement = Arrangement.Top,
-                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(35.dp)
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(
-                                label = { Text("Enter Expression", color = Rose) },
-                                colors = TextFieldDefaults.outlinedTextFieldColors(
-                                    containerColor = Russian_Violete,
-                                    focusedBorderColor = Rose,
-                                    unfocusedBorderColor = Rose
-                                ),
-                                value = expression,
-                                onValueChange = { input ->
-                                    val allowedChars = "0123456789+-*/."
-                                    expression = input.filter { it in allowedChars }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Button(
-                                onClick = {
-                                    if (expression.isNotBlank()) {
-                                        try {
-                                            val result = simpleCalculate(expression)
-                                            expressionS = expressionS + "$expression = $result"
-                                            expression = ""
-                                        } catch (e: Exception) {
-                                            expressionS = expressionS + "Ошибка в выражении"
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    label = { Text("Enter Expression", color = Rose) },
+                                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                                        containerColor = Russian_Violete,
+                                        focusedBorderColor = Rose,
+                                        unfocusedBorderColor = Rose
+                                    ),
+                                    value = expression,
+                                    onValueChange = { input ->
+                                        val allowed = "0123456789+-*/."
+                                        expression = input.filter { it in allowed }
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+
+                            Row(modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        if (expression.isNotBlank()) {
+                                            try {
+                                                val result = simpleCalculate(expression)
+                                                history = history + "$expression = $result"
+                                                expression = ""
+                                            } catch (_: Exception) {
+                                                history = history + "Ошибка в выражении"
+                                            }
                                         }
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(Rose),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp)
-                                    .height(56.dp)
-                            ) {
-                                Text("Calculate Expression", color = Color.White, fontSize = 15.sp)
-                            }
-                        }
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Button(
-                                onClick = {
-                                    context.startActivity(Intent(context, MusicPlayer::class.java))
-                                },
-                                colors = ButtonDefaults.buttonColors(Rose),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp)
-                                    .height(56.dp)
-                            ) {
-                                Text("Go to Music Player", color = Color.White, fontSize = 15.sp)
-                            }
-                        }
-                        LazyColumn {
-                            items(expressionS.reversed()) { currentExp ->
-                                Text(
-                                    text = currentExp,
-                                    color = Color.White,
+                                    },
+                                    colors = ButtonDefaults.buttonColors(Rose),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp)
-                                )
-                                Divider(color = Rose)
+                                        .height(56.dp)
+                                ) {
+                                    Text("Calculate Expression", color = Color.White, fontSize = 15.sp)
+                                }
                             }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                                items(history.reversed()) { item ->
+                                    Text(
+                                        text = item,
+                                        color = Color.White,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp)
+                                    )
+                                    Divider(color = Rose)
+                                }
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                context.startActivity(Intent(context, MainPage::class.java))
+                            },
+                            colors = ButtonDefaults.buttonColors(Rose),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                        ) {
+                            Text("Back to Main", color = Color.White, fontSize = 16.sp)
                         }
                     }
                 }

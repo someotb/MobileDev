@@ -4,47 +4,39 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Divider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.example.mycal.ui.theme.MycalTheme
 import com.example.mycal.ui.theme.Rose
+import com.example.mycal.ui.theme.Russian_Violete
 
-class AudioFile(val id: Long, val name: String, val data: String)
+data class AudioFile(val id: Long, val name: String, val data: String)
 
 fun fetchAudioFiles(context: Context): List<AudioFile> {
     val audioList = mutableListOf<AudioFile>()
@@ -72,37 +64,37 @@ fun fetchAudioFiles(context: Context): List<AudioFile> {
 }
 
 class MusicPlayer : ComponentActivity() {
-    private var hasPermission by mutableStateOf(false)
-
-    private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasPermission = granted
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-            Manifest.permission.READ_MEDIA_AUDIO
-        else
-            Manifest.permission.READ_EXTERNAL_STORAGE
-
-        permissionLauncher.launch(permission)
-
         setContent {
-            MusicPlayerScreen(hasPermission)
+            MycalTheme {
+                MusicPlayerScreen()
+            }
         }
     }
 }
 
 @Composable
-fun MusicPlayerScreen(hasPermission: Boolean) {
+fun MusicPlayerScreen() {
     val context = LocalContext.current
+
+    var hasPermission by remember { mutableStateOf(false) }
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> hasPermission = granted }
+
+    LaunchedEffect(Unit) {
+        val perm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            Manifest.permission.READ_MEDIA_AUDIO
+        else
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        launcher.launch(perm)
+    }
+
     var audioList by remember { mutableStateOf(emptyList<AudioFile>()) }
     var currentIndex by remember { mutableStateOf(-1) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var isPlaying by remember { mutableStateOf(false) }
 
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
@@ -112,137 +104,128 @@ fun MusicPlayerScreen(hasPermission: Boolean) {
 
     fun playSong(audioFile: AudioFile) {
         mediaPlayer?.release()
-        val uri = Uri.parse(audioFile.data)
-        mediaPlayer = MediaPlayer.create(context, uri)?.apply {
+        mediaPlayer = MediaPlayer().apply {
+            setDataSource(audioFile.data)
+            prepare()
             start()
             setOnCompletionListener {
+                isPlaying = false
                 release()
                 mediaPlayer = null
             }
         }
+        isPlaying = true
     }
+
     fun playNext() {
-        if (audioList.isNotEmpty()) {
-            currentIndex = (currentIndex + 1).coerceAtMost(audioList.lastIndex).let {
-                if (it > audioList.lastIndex) 0 else it
-            }
-            playSong(audioList[currentIndex])
-        }
-    }
-    fun playPrevious() {
-        if (audioList.isNotEmpty()) {
-            currentIndex = (currentIndex - 1).coerceAtLeast(0).let {
-                if (it < 0) audioList.lastIndex else it
-            }
+        if (currentIndex < audioList.lastIndex) {
+            currentIndex++
             playSong(audioList[currentIndex])
         }
     }
 
-    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    fun playPrevious() {
+        if (currentIndex > 0) {
+            currentIndex--
+            playSong(audioList[currentIndex])
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
-        val obs = LifecycleEventObserver { _, event ->
+        val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 mediaPlayer?.release()
-                mediaPlayer = null
             }
         }
-        lifecycleOwner.lifecycle.addObserver(obs)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+    Surface(modifier = Modifier.fillMaxSize(), color = Russian_Violete) {
         if (!hasPermission) {
-            Column(
-                Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    "Нет разрешения на доступ к аудиофайлам",
-                    color = Color.White, fontSize = 20.sp
-                )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Разрешение не получено", color = Color.White)
             }
         } else {
             Column(
-                Modifier
+                modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Music Player", color = Color.White, fontSize = 24.sp)
-                Row(
-                    Modifier.padding(top = 16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(
-                        onClick = { playPrevious() },
-                        colors = ButtonDefaults.buttonColors(Rose),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .padding(6.dp)
-                    ) { Text("Prev", color = Color.White, fontSize = 12.sp) }
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { playPrevious() }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Previous", tint = Rose)
+                        }
+                        IconButton(
+                            onClick = {
+                                mediaPlayer?.let { player ->
+                                    if (player.isPlaying) {
+                                        player.pause()
+                                        isPlaying = false
+                                    } else {
+                                        player.start()
+                                        isPlaying = true
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(Rose, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                tint = Color.White
+                            )
+                        }
 
-                    Button(
-                        onClick = {
-                            mediaPlayer?.let {
-                                if (it.isPlaying) it.pause() else it.start()
+                        IconButton(onClick = { playNext() }) {
+                            Icon(Icons.Filled.ArrowForward, contentDescription = "Next", tint = Rose)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    LazyColumn {
+                        items(audioList) { file ->
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        currentIndex = audioList.indexOf(file)
+                                        playSong(file)
+                                    }
+                                    .padding(12.dp)
+                            ) {
+                                Text(
+                                    text = file.name,
+                                    color = if (audioList.indexOf(file) == currentIndex) Rose else Color.White
+                                )
                             }
-                        },
-                        colors = ButtonDefaults.buttonColors(Rose),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .padding(6.dp)
-                    ) { Text("Play/Pause", color = Color.White, fontSize = 9.sp) }
-
-                    Button(
-                        onClick = { playNext() },
-                        colors = ButtonDefaults.buttonColors(Rose),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .padding(6.dp)
-                    ) { Text("Next", color = Color.White, fontSize = 12.sp) }
+                        }
+                    }
                 }
 
                 Button(
                     onClick = {
-                        context.startActivity(Intent(context, MainActivity::class.java))
+                        context.startActivity(Intent(context, MainPage::class.java))
                     },
                     colors = ButtonDefaults.buttonColors(Rose),
                     modifier = Modifier
-                        .height(56.dp)
-                        .padding(8.dp)
-                ) {
-                    Text("Go to calculator", color = Color.White, fontSize = 15.sp)
-                }
-
-                LazyColumn(
-                    Modifier
                         .fillMaxWidth()
-                        .padding(top = 16.dp)
+                        .height(56.dp)
                 ) {
-                    items(audioList) { audioFile ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    currentIndex = audioList.indexOf(audioFile)
-                                    playSong(audioFile)
-                                }
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                audioFile.name,
-                                color = if (audioList.indexOf(audioFile) == currentIndex) Rose else Color.White,
-                                fontSize = 16.sp
-                            )
-                        }
-                        Divider(color = Color.Gray)
-                    }
+                    Text("Back to Main", color = Color.White)
                 }
             }
         }
