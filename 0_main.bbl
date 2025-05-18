@@ -1,0 +1,94 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.2 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{none/global//global/global}
+    \entry{GitHub}{online}{}
+      \name{author}{1}{}{%
+        {{hash=d353f32d172932a959232b1dd753f217}{%
+           family={Ахпашев},
+           familyi={А\bibinitperiod},
+           given={Р.В.},
+           giveni={Р\bibinitperiod}}}%
+      }
+      \strng{namehash}{d353f32d172932a959232b1dd753f217}
+      \strng{fullhash}{d353f32d172932a959232b1dd753f217}
+      \strng{bibnamehash}{d353f32d172932a959232b1dd753f217}
+      \strng{authorbibnamehash}{d353f32d172932a959232b1dd753f217}
+      \strng{authornamehash}{d353f32d172932a959232b1dd753f217}
+      \strng{authorfullhash}{d353f32d172932a959232b1dd753f217}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{langid}{russian}
+      \field{title}{Репозиторий преподавателя с материалами по практическим работам}
+      \field{urlday}{20}
+      \field{urlmonth}{5}
+      \field{urlyear}{2025}
+      \field{year}{2025}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://github.com/sibsutisTelecomDep/blog
+      \endverb
+      \verb{url}
+      \verb https://github.com/sibsutisTelecomDep/blog
+      \endverb
+    \endentry
+    \entry{YouTube}{online}{}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labeltitlesource}{title}
+      \field{langid}{russian}
+      \field{note}{Материалы по Kotlin}
+      \field{title}{Видеохостинг YouTube}
+      \field{urlday}{20}
+      \field{urlmonth}{5}
+      \field{urlyear}{2025}
+      \field{year}{2025}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://youtube.com
+      \endverb
+      \verb{url}
+      \verb https://youtube.com
+      \endverb
+    \endentry
+    \entry{Metanit}{online}{}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labeltitlesource}{title}
+      \field{langid}{russian}
+      \field{title}{Руководство по языку Kotlin}
+      \field{urlday}{20}
+      \field{urlmonth}{5}
+      \field{urlyear}{2025}
+      \field{year}{2025}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://metanit.com/kotlin/tutorial/
+      \endverb
+      \verb{url}
+      \verb https://metanit.com/kotlin/tutorial/
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

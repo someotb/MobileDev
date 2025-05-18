@@ -1,0 +1,15 @@
+[0] Config.pm:307> INFO - This is Biber 2.19
+[0] Config.pm:310> INFO - Logfile is '0_main.blg'
+[52] biber:340> INFO - === Mon May 19, 2025, 01:22:10
+[65] Biber.pm:419> INFO - Reading '0_main.bcf'
+[119] Biber.pm:979> INFO - Found 3 citekeys in bib section 0
+[127] Biber.pm:4419> INFO - Processing section 0
+[134] Biber.pm:4610> INFO - Looking for bibtex file 'bibl.bib' for section 0
+[135] bibtex.pm:1713> INFO - LaTeX decoding ...
+[137] bibtex.pm:1519> INFO - Found BibTeX data source 'bibl.bib'
+[162] UCollate.pm:68> INFO - Overriding locale 'ru-RU' defaults 'variable = shifted' with 'variable = non-ignorable'
+[162] UCollate.pm:68> INFO - Overriding locale 'ru-RU' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[162] Biber.pm:4239> INFO - Sorting list 'none/global//global/global' of type 'entry' with template 'none' and locale 'ru-RU'
+[163] Biber.pm:4245> INFO - No sort tailoring available for locale 'ru-RU'
+[169] bbl.pm:660> INFO - Writing '0_main.bbl' with encoding 'UTF-8'
+[170] bbl.pm:763> INFO - Output to 0_main.bbl
