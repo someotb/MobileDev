@@ -38,4 +38,4 @@ MyApp – простое Android-приложение, объединяющее 
 ## Установка
 1. Клонируйте репозиторий:
 ```bash
-git clone https://github.com/yourusername/MyApp.git
+git clone https://github.com/w4tashia/MobileDev.git
