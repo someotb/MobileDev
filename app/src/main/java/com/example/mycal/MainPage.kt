@@ -97,6 +97,21 @@ fun MainPageScreen() {
             ) {
                 Text("Go to Map", color = Color.White, fontSize = 16.sp)
             }
+
+            Button(
+                onClick = {
+                    context.startActivity(
+                        Intent(context, ClientServer::class.java)
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(Rose),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(vertical = 8.dp)
+            ) {
+                Text("Go to Server-Client", color = Color.White, fontSize = 16.sp)
+            }
         }
     }
 }

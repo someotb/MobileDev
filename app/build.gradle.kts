@@ -41,6 +41,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation("org.zeromq:jeromq:0.5.2")
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
