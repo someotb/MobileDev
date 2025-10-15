@@ -1,6 +1,7 @@
 package com.example.mycal.activities
 
 import android.Manifest
+import android.R
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -11,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.widget.Button
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -30,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.mycal.MainPage
 import com.example.mycal.ui.theme.MycalTheme
@@ -105,7 +108,6 @@ class LocationActivity : ComponentActivity() {
                                 if (location != null) {
                                     latText = location.latitude.toString()
                                     lonText = location.longitude.toString()
-                                    saveCoordsToDownloads(context, location.latitude, location.longitude)
                                 } else {
                                     Toast.makeText(
                                         context,
@@ -150,6 +152,19 @@ class LocationActivity : ComponentActivity() {
                 Spacer(Modifier.height(16.dp))
                 Text("Широта: $latText", style = MaterialTheme.typography.bodyLarge, color = Color.White)
                 Text("Долгота: $lonText", style = MaterialTheme.typography.bodyLarge, color = Color.White)
+
+                Button(
+                    onClick = {
+                        saveCoordsToDownloads(context, latText, lonText)
+                    },
+                    colors = ButtonDefaults.buttonColors(Rose),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(top = 10.dp)
+                ) {
+                    Text("Save coords to Downloads", color = Color.White)
+                }
             }
 
             Button(
@@ -166,7 +181,7 @@ class LocationActivity : ComponentActivity() {
         }
     }
 
-    private fun saveCoordsToDownloads(context: Context, lat: Double, lon: Double) {
+    private fun saveCoordsToDownloads(context: Context, lat: String, lon: String) {
         val json = JSONObject().apply {
             put("latitude", lat)
             put("longitude", lon)

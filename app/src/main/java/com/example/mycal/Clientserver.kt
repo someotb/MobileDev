@@ -59,7 +59,7 @@ fun Clientserver() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Button(onClick = { StartClient() }, colors = ButtonDefaults.buttonColors(Rose)) {
-                    Text("Start Client")
+                    Text("Send message to Server")
                 }
             }
 
