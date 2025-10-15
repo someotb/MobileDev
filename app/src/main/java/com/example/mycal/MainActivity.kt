@@ -102,6 +102,7 @@ class MainActivity : ComponentActivity() {
                                     label = { Text("Enter Expression", color = Rose) },
                                     colors = TextFieldDefaults.outlinedTextFieldColors(
                                         containerColor = Russian_Violete,
+                                        focusedTextColor = Color.White,
                                         focusedBorderColor = Rose,
                                         unfocusedBorderColor = Rose
                                     ),
