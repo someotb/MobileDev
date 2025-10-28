@@ -1,7 +1,6 @@
 package com.example.mycal.activities
 
 import android.Manifest
-import android.R
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent

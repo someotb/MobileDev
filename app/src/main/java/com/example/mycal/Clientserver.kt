@@ -1,74 +1,99 @@
 package com.example.mycal
 
+import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import com.example.mycal.model.*
 import com.example.mycal.ui.theme.MycalTheme
 import com.example.mycal.ui.theme.Rose
 import com.example.mycal.ui.theme.Russian_Violete
+import com.google.android.gms.location.LocationServices
+import com.google.gson.Gson
 import org.zeromq.SocketType
 import org.zeromq.ZMQ
-import com.google.gson.Gson
-//import com.example.mycal.model.DeviceData
-import com.example.mycal.model.*
 import java.util.*
 import kotlin.concurrent.scheduleAtFixedRate
+import android.telephony.TelephonyManager
+import android.telephony.CellInfoLte
+import android.telephony.CellSignalStrengthLte
+import android.telephony.CellIdentityLte
 
 private var periodicTimer: Timer? = null
 
-fun getMockDeviceData(): DeviceData {
-    val location = LocationData(
-        latitude = 55.7558,
-        longitude = 37.6173,
-        altitude = 200.0,
-        timestamp = System.currentTimeMillis(),
-        speed = 0.0f,
-        accuracy = 5.0f
-    )
+fun getRealDeviceData(context: Context, callback: (DeviceData?) -> Unit) {
+    if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        callback(null)
+        return
+    }
 
-    val cellIdentity = CellIdentityLte(
-        band = 3,
-        cellIdentity = 12345,
-        earfcn = 6300,
-        mcc = 250,
-        mnc = 99,
-        pci = 100,
-        tac = 1234
-    )
+    val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+    fusedClient.lastLocation.addOnSuccessListener { location ->
+        if (location != null) {
+            val locData = LocationData(
+                latitude = location.latitude,
+                longitude = location.longitude,
+                altitude = location.altitude,
+                timestamp = location.time,
+                speed = location.speed,
+                accuracy = location.accuracy
+            )
 
-    val signal = CellSignalStrengthLte(
-        asuLevel = 20,
-        cqi = 10,
-        rsrp = -95,
-        rsrq = -10,
-        rssi = -70,
-        rssnr = 30,
-        timingAdvance = 5
-    )
+            // Получаем LTE-ячейки
+            val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+            val cellInfoList = mutableListOf<com.example.mycal.model.CellInfoLte>()
 
-    val cellInfo = CellInfoLte(
-        cellIdentityLte = cellIdentity,
-        cellSignalStrengthLte = signal
-    )
+            telephonyManager.allCellInfo?.forEach { cell ->
+                if (cell is android.telephony.CellInfoLte && cell.isRegistered) {
+                    val identity = cell.cellIdentity
+                    val signalStrength = cell.cellSignalStrength
 
-    return DeviceData(location, listOf(cellInfo))
+                    val cellIdentityModel = CellIdentityLte(
+                        band = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) identity.bands?.firstOrNull() ?: -1 else -1,
+                        cellIdentity = identity.ci,
+                        earfcn = identity.earfcn,
+                        mcc = identity.mcc,
+                        mnc = identity.mnc,
+                        pci = identity.pci,
+                        tac = identity.tac
+                    )
+
+                    val cellSignalModel = com.example.mycal.model.CellSignalStrengthLte(
+                        asuLevel = signalStrength.asuLevel,
+                        cqi = signalStrength.cqi,
+                        rsrp = signalStrength.rsrp,
+                        rsrq = signalStrength.rsrq,
+                        rssi = signalStrength.rssi,
+                        rssnr = signalStrength.rssnr,
+                        timingAdvance = signalStrength.timingAdvance
+                    )
+
+                    cellInfoList.add(com.example.mycal.model.CellInfoLte(cellIdentityModel, cellSignalModel))
+                }
+            }
+
+            val deviceData = DeviceData(locData, cellInfoList)
+            callback(deviceData)
+        } else {
+            callback(null)
+        }
+    }.addOnFailureListener {
+        callback(null)
+    }
 }
 
 class ClientServer : ComponentActivity() {
@@ -84,10 +109,9 @@ class ClientServer : ComponentActivity() {
 
 @Composable
 fun Clientserver() {
+    val androidContext = LocalContext.current
 
-    val context = LocalContext.current
-
-    Surface (
+    Surface(
         modifier = Modifier.fillMaxSize(),
         color = Russian_Violete
     ) {
@@ -98,17 +122,18 @@ fun Clientserver() {
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column (
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth().weight(1f),
+                    .fillMaxWidth()
+                    .weight(1f),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Button(onClick = { StartClient() }, colors = ButtonDefaults.buttonColors(Rose)) {
+                Button(onClick = { startClient(androidContext) }, colors = ButtonDefaults.buttonColors(Rose)) {
                     Text("Send message to Server")
                 }
 
-                Button(onClick = { startPeriodicSending() }, colors = ButtonDefaults.buttonColors(Rose)) {
+                Button(onClick = { startPeriodicSending(androidContext) }, colors = ButtonDefaults.buttonColors(Rose)) {
                     Text("Start Periodic Sending")
                 }
 
@@ -119,7 +144,7 @@ fun Clientserver() {
 
             Button(
                 onClick = {
-                    context.startActivity(Intent(context, MainPage::class.java))
+                    androidContext.startActivity(Intent(androidContext, MainPage::class.java))
                 },
                 colors = ButtonDefaults.buttonColors(Rose),
                 modifier = Modifier
@@ -131,53 +156,52 @@ fun Clientserver() {
         }
     }
 }
-fun StartClient() {
-    val context = ZMQ.context(1)
-    val socket = context.socket(SocketType.REQ)
 
-    val deviceData = getMockDeviceData()
+fun startClient(androidContext: Context) {
+    val zmqContext = ZMQ.context(1)
 
-    val gson = Gson()
-    val jsonString = gson.toJson(deviceData)
+    getRealDeviceData(androidContext) { deviceData ->
+        if (deviceData != null) {
+            val gson = Gson()
+            val jsonString = gson.toJson(deviceData)
 
-    println("Sending JSON to server:")
-    println(jsonString)
+            println("Sending JSON to server:")
+            println(jsonString)
 
-    socket.connect("tcp://10.0.2.2:2222")
-    socket.send(jsonString)
-
-    val reply = socket.recvStr()
-    println("Received reply from server: $reply")
-
-    socket.close()
-    context.close()
+            val socket = zmqContext.socket(SocketType.REQ)
+            socket.connect("tcp://10.0.2.2:2222")
+            socket.send(jsonString)
+            val reply = socket.recvStr()
+            println("Received reply from server: $reply")
+            socket.close()
+            zmqContext.close()
+        } else {
+            println("Failed to get device data")
+        }
+    }
 }
 
-fun startPeriodicSending() {
-    if (periodicTimer != null) {
-        println("Periodic Timer already running!")
-        return
-    }
+private var periodicSocket: ZMQ.Socket? = null
 
-    val context = ZMQ.context(1)
-    val socket = context.socket(SocketType.REQ)
-    socket.connect("tcp://10.0.2.2:2222")
+fun startPeriodicSending(androidContext: Context) {
+    if (periodicTimer != null) return
+
+    val zmqContext = ZMQ.context(1)
+    periodicSocket = zmqContext.socket(SocketType.REQ)
+    periodicSocket?.connect("tcp://10.0.2.2:2222")
 
     val gson = Gson()
 
     periodicTimer = Timer()
     periodicTimer!!.scheduleAtFixedRate(0, 1000) {
-        try {
-            val deviceData = getMockDeviceData()
-            val jsonString = gson.toJson(deviceData)
-
-            println("Sending JSON at ${System.currentTimeMillis()}")
-            socket.send(jsonString)
-
-            val reply = socket.recvStr()
-            println("Server replied: $reply")
-        } catch (e: Exception) {
-            println("Error: ${e.message}")
+        getRealDeviceData(androidContext) { deviceData ->
+            if (deviceData != null) {
+                val jsonString = gson.toJson(deviceData)
+                println("Sending JSON at ${System.currentTimeMillis()}")
+                periodicSocket?.send(jsonString)
+                val reply = periodicSocket?.recvStr()
+                println("Server replied: $reply")
+            }
         }
     }
 }
@@ -185,5 +209,7 @@ fun startPeriodicSending() {
 fun stopPeriodicSending() {
     periodicTimer?.cancel()
     periodicTimer = null
+    periodicSocket?.close()
+    periodicSocket = null
     println("Periodic Timer stopped")
 }
