@@ -4,8 +4,10 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Location
 import android.location.LocationManager
 import android.os.Build
+import android.os.Looper
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -32,68 +34,73 @@ import android.telephony.TelephonyManager
 import android.telephony.CellInfoLte
 import android.telephony.CellSignalStrengthLte
 import android.telephony.CellIdentityLte
+import androidx.annotation.RequiresPermission
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.Priority
 
 private var periodicTimer: Timer? = null
+private lateinit var fusedClient: FusedLocationProviderClient
+private var currentLocation: Location? = null
 
-fun getRealDeviceData(context: Context, callback: (DeviceData?) -> Unit) {
-    if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+@RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+fun getDeviceData(context: Context, callback: (DeviceData?) -> Unit) {
+    val loc = currentLocation
+    if (loc == null) {
         callback(null)
         return
     }
 
-    val fusedClient = LocationServices.getFusedLocationProviderClient(context)
-    fusedClient.lastLocation.addOnSuccessListener { location ->
-        if (location != null) {
-            val locData = LocationData(
-                latitude = location.latitude,
-                longitude = location.longitude,
-                altitude = location.altitude,
-                timestamp = location.time,
-                speed = location.speed,
-                accuracy = location.accuracy
-            )
+    val locData = LocationData(
+        latitude = loc.latitude,
+        longitude = loc.longitude,
+        altitude = loc.altitude,
+        timestamp = loc.time,
+        speed = loc.speed,
+        accuracy = loc.accuracy
+    )
 
-            // Получаем LTE-ячейки
-            val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-            val cellInfoList = mutableListOf<com.example.mycal.model.CellInfoLte>()
+    val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+    val cellInfoList = mutableListOf<com.example.mycal.model.CellInfoLte>()
 
-            telephonyManager.allCellInfo?.forEach { cell ->
-                if (cell is android.telephony.CellInfoLte && cell.isRegistered) {
-                    val identity = cell.cellIdentity
-                    val signalStrength = cell.cellSignalStrength
+    if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+        == PackageManager.PERMISSION_GRANTED
+    )
+    {
+        telephonyManager.allCellInfo?.forEach { cell ->
+            if (cell is CellInfoLte && cell.isRegistered) {
+                val identity = cell.cellIdentity
+                val signalStrength = cell.cellSignalStrength
 
-                    val cellIdentityModel = CellIdentityLte(
-                        band = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) identity.bands?.firstOrNull() ?: -1 else -1,
-                        cellIdentity = identity.ci,
-                        earfcn = identity.earfcn,
-                        mcc = identity.mcc,
-                        mnc = identity.mnc,
-                        pci = identity.pci,
-                        tac = identity.tac
-                    )
+                val cellIdentityModel = CellIdentityLte(
+                    band = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) identity.bands?.firstOrNull()
+                        ?: -1 else -1,
+                    cellIdentity = identity.ci,
+                    earfcn = identity.earfcn,
+                    mcc = identity.mcc,
+                    mnc = identity.mnc,
+                    pci = identity.pci,
+                    tac = identity.tac
+                )
 
-                    val cellSignalModel = com.example.mycal.model.CellSignalStrengthLte(
-                        asuLevel = signalStrength.asuLevel,
-                        cqi = signalStrength.cqi,
-                        rsrp = signalStrength.rsrp,
-                        rsrq = signalStrength.rsrq,
-                        rssi = signalStrength.rssi,
-                        rssnr = signalStrength.rssnr,
-                        timingAdvance = signalStrength.timingAdvance
-                    )
+                val cellSignalModel = CellSignalStrengthLte(
+                    asuLevel = signalStrength.asuLevel,
+                    cqi = signalStrength.cqi,
+                    rsrp = signalStrength.rsrp,
+                    rsrq = signalStrength.rsrq,
+                    rssi = signalStrength.rssi,
+                    rssnr = signalStrength.rssnr,
+                    timingAdvance = signalStrength.timingAdvance
+                )
 
-                    cellInfoList.add(com.example.mycal.model.CellInfoLte(cellIdentityModel, cellSignalModel))
-                }
+                cellInfoList.add(CellInfoLte(cellIdentityModel, cellSignalModel))
             }
-
-            val deviceData = DeviceData(locData, cellInfoList)
-            callback(deviceData)
-        } else {
-            callback(null)
         }
-    }.addOnFailureListener {
-        callback(null)
     }
+
+    callback(DeviceData(locData, cellInfoList))
 }
 
 class ClientServer : ComponentActivity() {
@@ -101,6 +108,29 @@ class ClientServer : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MycalTheme {
+                fusedClient = LocationServices.getFusedLocationProviderClient(this)
+
+                val request = LocationRequest.Builder(
+                    Priority.PRIORITY_HIGH_ACCURACY,
+                    1000 // интервал обновлений 1 секунда
+                ).build()
+
+                val callback = object : LocationCallback() {
+                    override fun onLocationResult(result: LocationResult) {
+                        currentLocation = result.lastLocation
+                    }
+                }
+
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED
+                ) {
+                    fusedClient.requestLocationUpdates(
+                        request,
+                        callback,
+                        Looper.getMainLooper()
+                    )
+                }
+
                 Clientserver()
             }
         }
@@ -158,9 +188,16 @@ fun Clientserver() {
 }
 
 fun startClient(androidContext: Context) {
+    if (ContextCompat.checkSelfPermission(androidContext, Manifest.permission.ACCESS_FINE_LOCATION)
+        != PackageManager.PERMISSION_GRANTED
+    ) {
+        println("No location permission")
+        return
+    }
+
     val zmqContext = ZMQ.context(1)
 
-    getRealDeviceData(androidContext) { deviceData ->
+    getDeviceData(androidContext) { deviceData ->
         if (deviceData != null) {
             val gson = Gson()
             val jsonString = gson.toJson(deviceData)
@@ -186,6 +223,13 @@ private var periodicSocket: ZMQ.Socket? = null
 fun startPeriodicSending(androidContext: Context) {
     if (periodicTimer != null) return
 
+    if (ContextCompat.checkSelfPermission(androidContext, Manifest.permission.ACCESS_FINE_LOCATION)
+        != PackageManager.PERMISSION_GRANTED
+    ) {
+        println("No location permission")
+        return
+    }
+
     val zmqContext = ZMQ.context(1)
     periodicSocket = zmqContext.socket(SocketType.REQ)
     periodicSocket?.connect("tcp://10.0.2.2:2222")
@@ -194,7 +238,7 @@ fun startPeriodicSending(androidContext: Context) {
 
     periodicTimer = Timer()
     periodicTimer!!.scheduleAtFixedRate(0, 1000) {
-        getRealDeviceData(androidContext) { deviceData ->
+        getDeviceData(androidContext) { deviceData ->
             if (deviceData != null) {
                 val jsonString = gson.toJson(deviceData)
                 println("Sending JSON at ${System.currentTimeMillis()}")
